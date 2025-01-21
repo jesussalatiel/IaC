@@ -1,13 +1,36 @@
 {
     "name": "aws-typescript",
     "main": "index.ts",
+    "scripts": {
+        "prettier": "npx prettier . --write",
+        "lint": "eslint --fix .",
+        "prepare": "husky"
+    },
     "devDependencies": {
+        "@commitlint/cli": "^19.6.1",
+        "@commitlint/config-conventional": "^19.6.0",
+        "@eslint/js": "^9.18.0",
         "@types/node": "^18",
-        "typescript": "^5.0.0"
+        "commitlint": "^19.6.1",
+        "eslint": "^9.18.0",
+        "globals": "^15.14.0",
+        "husky": "^9.1.7",
+        "lint-staged": "^15.4.1",
+        "prettier": "3.4.2",
+        "typescript": "^5.0.0",
+        "typescript-eslint": "^8.21.0"
     },
     "dependencies": {
         "@pulumi/aws": "^6.0.0",
         "@pulumi/awsx": "^2.0.2",
         "@pulumi/pulumi": "^3.113.0"
+    },
+    "lint-staged": {
+        "**/*": "prettier --write --ignore-unknown"
+    },
+    "commitlint": {
+        "extends": [
+            "@commitlint/config-conventional"
+        ]
     }
 }
