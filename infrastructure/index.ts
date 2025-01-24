@@ -52,6 +52,7 @@ class S3BucketManager {
     constructor(uniqueSuffix: pulumi.Output<string>) {
         const codepipelineBucket = new aws.s3.BucketV2("codepipeline_bucket", {
             bucket: pulumi.interpolate`test-bucket-${uniqueSuffix}`,
+            forceDestroy: true,
         });
 
         this.bucket = codepipelineBucket.bucket;
@@ -191,7 +192,15 @@ class CodeBuildRoleManager {
 class CodeBuildManager {
     public readonly projectName: pulumi.Output<string>;
 
-    constructor(codeBuildRoleArn: pulumi.Output<string>) {
+    constructor(
+        codeBuildRoleArn: pulumi.Output<string>,
+        userPoolClientId: pulumi.Output<string>,
+        userPoolId: pulumi.Output<string>,
+        awsRegion: pulumi.Output<string>,
+        identityPoolId: pulumi.Output<string>,
+        websiteUrl: pulumi.Output<string>,
+        apiKey: pulumi.Output<string>,
+    ) {
         const codeBuildProject = new aws.codebuild.Project("codebuild_project", {
             name: "nextjs-project",
             serviceRole: codeBuildRoleArn, // Usar el ARN del rol de CodeBuild
@@ -206,6 +215,30 @@ class CodeBuildManager {
                     {
                         name: "NODE_ENV",
                         value: "production",
+                    },
+                    {
+                        name: "USER_POOL_CLIENT_ID",
+                        value: userPoolClientId.apply((id) => id), // Pasar el User Pool Client ID
+                    },
+                    {
+                        name: "USER_POOL_ID",
+                        value: userPoolId.apply((id) => id), // Pasar el User Pool ID
+                    },
+                    {
+                        name: "AWS_REGION",
+                        value: awsRegion.apply((region) => region), // Pasar la región de AWS
+                    },
+                    {
+                        name: "IDENTITY_POOL_ID",
+                        value: identityPoolId.apply((id) => id), // Pasar el Identity Pool ID
+                    },
+                    {
+                        name: "URL",
+                        value: websiteUrl.apply((url) => url), // Pasar la URL del sitio web
+                    },
+                    {
+                        name: "API_KEY",
+                        value: apiKey.apply((key) => key), // Pasar la API Key de GraphQL
                     },
                 ],
             },
@@ -254,8 +287,8 @@ class CodePipelineManager {
                             outputArtifacts: ["source_output"],
                             configuration: {
                                 ConnectionArn: connectionArn,
-                                FullRepositoryId: "jesussalatiel/react-project",
-                                BranchName: "master",
+                                FullRepositoryId: "jesussalatiel/amplify-next-template",
+                                BranchName: "main",
                             },
                         },
                     ],
@@ -328,8 +361,57 @@ const userPoolClient = new aws.cognito.UserPoolClient("myUserPoolClient", {
     explicitAuthFlows: ["ALLOW_USER_PASSWORD_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"],
 });
 
-// Declare at top level
-let websiteUrl: pulumi.Output<string>;
+// Crear un API GraphQL en AWS AppSync
+const graphqlApi = new aws.appsync.GraphQLApi("myGraphQLApi", {
+    authenticationType: "API_KEY", // Tipo de autenticación
+    name: "my-graphql-api",
+    schema: `
+        type Todo {
+            id: ID!
+            content: String
+            createdAt: AWSDateTime
+            updatedAt: AWSDateTime
+        }
+
+        type Query {
+            getTodo(id: ID!): Todo
+            listTodos: [Todo]
+        }
+
+        type Mutation {
+            createTodo(content: String!): Todo
+            updateTodo(id: ID!, content: String!): Todo
+            deleteTodo(id: ID!): Todo
+        }
+
+        schema {
+            query: Query
+            mutation: Mutation
+        }
+    `,
+});
+
+// Crear una API Key para el API GraphQL
+const apiKey = new aws.appsync.ApiKey("myApiKey", {
+    apiId: graphqlApi.id,
+    description: "API Key for accessing the GraphQL API",
+    expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // Valid for 1 year
+});
+
+// Obtener la región de AWS
+const awsRegion = pulumi.output(aws.getRegion({})).apply((region) => region.name);
+
+// Crear un Identity Pool
+const identityPool = new aws.cognito.IdentityPool("myIdentityPool", {
+    identityPoolName: "my-identity-pool",
+    allowUnauthenticatedIdentities: true, // Habilitar identidades no autenticadas
+    cognitoIdentityProviders: [
+        {
+            clientId: userPoolClient.id,
+            providerName: userPool.endpoint.apply((endpoint) => endpoint), // Obtener el endpoint del User Pool
+        },
+    ],
+});
 
 // Main function to orchestrate the creation of resources
 function main() {
@@ -346,7 +428,20 @@ function main() {
         kmsKeyManager.keyArn, // Pasar el ARN de la clave KMS
     );
     const codeBuildRoleManager = new CodeBuildRoleManager(kmsKeyManager.keyArn); // Crear el rol de IAM para CodeBuild
-    const codeBuildManager = new CodeBuildManager(codeBuildRoleManager.roleArn); // Crear el proyecto de CodeBuild
+
+    const websiteUrl = pulumi.interpolate`http://${s3BucketManager.bucket}.s3-website-${s3BucketManager.bucketRegion}.amazonaws.com`;
+
+    // Crear el proyecto de CodeBuild con las variables de entorno
+    const codeBuildManager = new CodeBuildManager(
+        codeBuildRoleManager.roleArn,
+        userPoolClient.id,
+        userPool.id,
+        awsRegion,
+        identityPool.id,
+        websiteUrl,
+        apiKey.key,
+    );
+
     const codePipelineManager = new CodePipelineManager(
         iamRoleManager.roleArn,
         s3BucketManager.bucket,
@@ -376,13 +471,21 @@ function main() {
     });
 
     // Return the URL instead of exporting it
-    return pulumi.interpolate`http://${s3BucketManager.bucket}.s3-website-${s3BucketManager.bucketRegion}.amazonaws.com`;
+    return { websiteUrl };
 }
 
 // Set the URL and export it at top level
-websiteUrl = main();
+const websiteUrl = main();
+
 export { websiteUrl };
 
 // Exportar el User Pool ID y el User Pool Client ID
 export const userPoolId = userPool.id;
 export const userPoolClientId = userPoolClient.id;
+
+// Exportar la URL del API GraphQL y la API Key
+export const graphqlApiUrl = graphqlApi.uris.apply((uris) => uris["GRAPHQL"]);
+export const graphqlApiKey = apiKey.key;
+
+// Exportar el Identity Pool ID
+export const identityPoolId = identityPool.id;
