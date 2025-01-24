@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+    install:
+        runtime-versions:
+            nodejs: 20 # Especifica la versión de Node.js
+        commands:
+            - echo "Installing dependencies..."
+            - npm install
+
+    build:
+        commands:
+            - echo "Building the project..."
+            - npm run build
+
+artifacts:
+    files:
+        - "**/*" # Incluye todos los archivos generados en la carpeta de construcción
+    discard-paths: no
+    base-directory: build # Especifica la carpeta donde se generan los archivos (por ejemplo, `build` en React)

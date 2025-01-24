@@ -12,5 +12,7 @@
         "noImplicitReturns": true,
         "forceConsistentCasingInFileNames": true
     },
-    "files": ["infrastructure/index.ts"]
+    "files": ["infrastructure/index.ts"],
+    "include": ["infrastructure/**/*.ts"],
+    "exclude": ["node_modules"]
 }

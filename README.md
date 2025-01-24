@@ -75,6 +75,17 @@ Pulumi supports a wide range of cloud platforms, including:
     ```bash
     pulumi destroy
     ```
+8. **Destroy Stack**:
+   Remove stack and its configuration state.
+    ```bash
+    pulumi stack rm <stack-name> --yes
+    ```
+9. **Set Global Variable**
+   Set a global variable in base64
+
+    ```bash
+    pulumi config set github-oauth-token <token> --secret
+    ```
 
 ---
 

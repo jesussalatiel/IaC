@@ -1,6 +1,6 @@
 {
     "name": "aws-typescript",
-    "main": "index.ts",
+    "main": "infrastructure/index.ts",
     "scripts": {
         "prettier": "npx prettier . --write",
         "lint": "eslint --fix .",
@@ -10,7 +10,7 @@
         "@commitlint/cli": "^19.6.1",
         "@commitlint/config-conventional": "^19.6.0",
         "@eslint/js": "^9.18.0",
-        "@types/node": "^18",
+        "@types/node": "^18.19.71",
         "commitlint": "^19.6.1",
         "eslint": "^9.18.0",
         "globals": "^15.14.0",
@@ -23,7 +23,10 @@
     "dependencies": {
         "@pulumi/aws": "^6.0.0",
         "@pulumi/awsx": "^2.0.2",
-        "@pulumi/pulumi": "^3.113.0"
+        "@pulumi/eslint-plugin": "^0.2.0",
+        "@pulumi/pulumi": "^3.113.0",
+        "@pulumi/random": "^4.17.0",
+        "ts-dotenv": "^0.9.1"
     },
     "lint-staged": {
         "**/*": "prettier --write --ignore-unknown"
